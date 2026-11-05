@@ -15,7 +15,7 @@ enum ApplicationStatus {
   DECLINED
 }
 
-enum PaymentStatus {
+enum ApplicationPaymentStatus {
   NOT_REQUIRED
   PENDING
   RECEIPT_SUBMITTED
@@ -23,20 +23,38 @@ enum PaymentStatus {
   REJECTED
 }
 
-enum ContentStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
+enum PaymentStatus {
+  PENDING
+  RECEIPT_SUBMITTED
+  VERIFIED
+  REJECTED
 }
 
-enum ContactStatus {
-  NEW
-  IN_PROGRESS
-  RESOLVED
-  ARCHIVED
+enum PaymentMethod {
+  BANK_DEPOSIT
+  CASH
+  OTHER
+}
+
+enum ReviewAction {
+  SUBMITTED
+  STARTED_REVIEW
+  REQUESTED_CORRECTION
+  CORRECTION_RECEIVED
+  APPROVED
+  DECLINED
+  NOTE_ADDED
+}
+
+enum MemberStatus {
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  RESIGNED
 }
 
 enum UserStatus {
+  INVITED
   ACTIVE
   DISABLED
 }
@@ -46,53 +64,162 @@ enum Locale {
   OM
 }
 
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PostType {
+  NEWS
+  BLOG
+  ANNOUNCEMENT
+  PROJECT
+  PUBLICATION
+}
+
+enum MediaVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ContactStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  ARCHIVED
+}
+
+enum EventRegistrationStatus {
+  REGISTERED
+  CANCELLED
+  ATTENDED
+  NO_SHOW
+}
+
+enum NotificationChannel {
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
-  id           String      @id @default(cuid())
-  name         String
-  email        String      @unique
-  passwordHash String
-  status       UserStatus  @default(ACTIVE)
-  roles        UserRole[]
-  reviews      ApplicationReview[]
-  auditLogs    AuditLog[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id                String     @id @default(cuid())
+  name              String
+  email             String     @unique
+  passwordHash      String?
+  status            UserStatus @default(INVITED)
+  emailVerifiedAt   DateTime?
+  lastLoginAt       DateTime?
+  passwordChangedAt DateTime?
+
+  roles                      UserRole[]
+  sessions                   Session[]
+  member                     Member?
+  reviews                    ApplicationReview[]
+  verifiedPayments           MembershipPayment[]     @relation("PaymentVerifier")
+  auditLogs                  AuditLog[]
+  authoredPosts              Post[]                  @relation("PostAuthor")
+  authoredPages              Page[]                  @relation("PageAuthor")
+  authoredEvents             Event[]                 @relation("EventAuthor")
+  publishedPostTranslations  PostTranslation[]       @relation("PostTranslationPublisher")
+  publishedPageTranslations  PageTranslation[]       @relation("PageTranslationPublisher")
+  publishedEventTranslations EventTranslation[]      @relation("EventTranslationPublisher")
+  assignedContacts           ContactMessage[]        @relation("ContactAssignee")
+  uploadedMedia              Media[]                 @relation("MediaUploader")
+  leadershipAppointmentsMade LeadershipAppointment[] @relation("AppointmentCreator")
+  notifications              Notification[]
+  updatedSettings            Setting[]               @relation("SettingUpdater")
+  contentRevisions           ContentRevision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  ipAddress  String?
+  userAgent  String?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
 }
 
 model Role {
-  id          String     @id @default(cuid())
-  name        String     @unique
+  id          String           @id @default(cuid())
+  name        String           @unique
   description String?
+  isSystem    Boolean          @default(false)
   users       UserRole[]
-  createdAt   DateTime   @default(now())
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now())
 }
 
 model UserRole {
-  userId String
-  roleId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
 }
 
 model MembershipType {
-  id           String   @id @default(cuid())
-  name         String
-  description  String?
-  fee          Decimal? @db.Decimal(12, 2)
-  currency     String   @default("ETB")
-  isActive     Boolean  @default(true)
-  applications MembershipApplication[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String                  @id @default(cuid())
+  code            String                  @unique
+  name            String
+  description     String?
+  fee             Decimal?                @db.Decimal(12, 2)
+  currency        String                  @default("ETB")
+  requiresPayment Boolean                 @default(true)
+  isActive        Boolean                 @default(true)
+  applications    MembershipApplication[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([isActive])
 }
 
 model MembershipApplication {
-  id               String                 @id @default(cuid())
-  trackingRef      String                 @unique
+  id               String                   @id @default(cuid())
+  trackingRef      String                   @unique
   membershipTypeId String
-  membershipType   MembershipType         @relation(fields: [membershipTypeId], references: [id])
+  membershipType   MembershipType           @relation(fields: [membershipTypeId], references: [id], onDelete: Restrict)
   firstName        String
   middleName       String?
   lastName         String
@@ -100,133 +227,366 @@ model MembershipApplication {
   phone            String
   professionalId   String?
   institution      String?
-  status           ApplicationStatus      @default(SUBMITTED)
-  paymentStatus    PaymentStatus          @default(PENDING)
+  status           ApplicationStatus        @default(SUBMITTED)
+  paymentStatus    ApplicationPaymentStatus @default(PENDING)
   applicantNotes   String?
   documents        ApplicationDocument[]
   reviews          ApplicationReview[]
   payments         MembershipPayment[]
   member           Member?
-  submittedAt      DateTime               @default(now())
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  submittedAt      DateTime                 @default(now())
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   @@index([status, submittedAt])
   @@index([email])
+  @@index([membershipTypeId])
+  @@index([paymentStatus])
 }
 
 model ApplicationDocument {
-  id            String               @id @default(cuid())
+  id            String                @id @default(cuid())
   applicationId String
-  application   MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application   MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
   documentType  String
-  storageKey    String
-  originalName  String
-  mimeType      String
-  sizeBytes     Int
-  createdAt     DateTime             @default(now())
+  mediaId       String                @unique
+  media         Media                 @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  createdAt     DateTime              @default(now())
 
   @@index([applicationId])
 }
 
 model ApplicationReview {
-  id             String               @id @default(cuid())
+  id             String                @id @default(cuid())
   applicationId  String
-  application    MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  reviewerId     String
-  reviewer       User                 @relation(fields: [reviewerId], references: [id])
-  action         String
+  application    MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  reviewerId     String?
+  reviewer       User?                 @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+  action         ReviewAction
   previousStatus ApplicationStatus?
   newStatus      ApplicationStatus?
   note           String?
-  createdAt      DateTime             @default(now())
+  createdAt      DateTime              @default(now())
 
   @@index([applicationId, createdAt])
+  @@index([reviewerId, createdAt])
 }
 
 model MembershipPayment {
-  id               String               @id @default(cuid())
+  id               String                @id @default(cuid())
   applicationId    String
-  application      MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  amount           Decimal              @db.Decimal(12, 2)
-  currency         String               @default("ETB")
-  status           PaymentStatus        @default(PENDING)
-  receiptKey       String?
+  application      MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  amount           Decimal               @db.Decimal(12, 2)
+  currency         String                @default("ETB")
+  method           PaymentMethod         @default(BANK_DEPOSIT)
+  referenceNumber  String?
+  status           PaymentStatus         @default(PENDING)
+  receiptMediaId   String?               @unique
+  receiptMedia     Media?                @relation("PaymentReceipt", fields: [receiptMediaId], references: [id], onDelete: SetNull)
   verifiedById     String?
+  verifiedBy       User?                 @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
   verifiedAt       DateTime?
   verificationNote String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   @@index([applicationId, status])
+  @@index([verifiedById, verifiedAt])
 }
 
 model Member {
-  id            String               @id @default(cuid())
-  membershipNo  String               @unique
-  applicationId String               @unique
-  application   MembershipApplication @relation(fields: [applicationId], references: [id])
-  isActive      Boolean              @default(true)
-  joinedAt      DateTime             @default(now())
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  id            String                 @id @default(cuid())
+  membershipNo  String                 @unique
+  applicationId String?                @unique
+  application   MembershipApplication? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  userId        String?                @unique
+  user          User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  firstName              String
+  middleName             String?
+  lastName               String
+  email                  String
+  phone                  String
+  professionalId         String?
+  institution            String?
+  status                 MemberStatus            @default(ACTIVE)
+  joinedAt               DateTime                @default(now())
+  expiresAt              DateTime?
+  leadershipAppointments LeadershipAppointment[]
+  eventRegistrations     EventRegistration[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([lastName, firstName])
+  @@index([email])
+}
+
+model LeadershipPosition {
+  id           String                  @id @default(cuid())
+  key          String                  @unique
+  name         String
+  description  String?
+  appointments LeadershipAppointment[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+}
+
+model LeadershipAppointment {
+  id            String             @id @default(cuid())
+  memberId      String
+  member        Member             @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  positionId    String
+  position      LeadershipPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  appointedById String?
+  appointedBy   User?              @relation("AppointmentCreator", fields: [appointedById], references: [id], onDelete: SetNull)
+  startsAt      DateTime
+  endsAt        DateTime?
+  note          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([positionId, startsAt, endsAt])
+  @@index([memberId, startsAt])
 }
 
 model Post {
-  id           String             @id @default(cuid())
-  type         String             @default("NEWS")
-  status       ContentStatus      @default(DRAFT)
+  id           String            @id @default(cuid())
+  type         PostType          @default(NEWS)
+  authorId     String
+  author       User              @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   coverMediaId String?
+  coverMedia   Media?            @relation("PostCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
   translations PostTranslation[]
-  publishedAt  DateTime?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  categories   PostCategory[]
+  tags         PostTag[]
+  publication  Publication?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
-  @@index([type, status, publishedAt])
+  @@index([type, createdAt])
+  @@index([authorId])
 }
 
 model PostTranslation {
-  id              String        @id @default(cuid())
-  postId          String
-  post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  locale          Locale
-  title           String
-  slug            String
-  excerpt         String?
-  body            String
-  seoTitle        String?
-  seoDescription  String?
-  status          ContentStatus @default(DRAFT)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  postId         String
+  post           Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  locale         Locale
+  title          String
+  slug           String
+  excerpt        String?       @db.Text
+  body           String        @db.Text
+  seoTitle       String?
+  seoDescription String?       @db.Text
+  status         ContentStatus @default(DRAFT)
+  publisherId    String?
+  publisher      User?         @relation("PostTranslationPublisher", fields: [publisherId], references: [id], onDelete: SetNull)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@unique([postId, locale])
   @@unique([locale, slug])
+  @@index([locale, status, publishedAt])
+}
+
+model Page {
+  id           String            @id @default(cuid())
+  authorId     String
+  author       User              @relation("PageAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  coverMediaId String?
+  coverMedia   Media?            @relation("PageCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  translations PageTranslation[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([authorId])
+}
+
+model PageTranslation {
+  id             String        @id @default(cuid())
+  pageId         String
+  page           Page          @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  locale         Locale
+  title          String
+  slug           String
+  body           String        @db.Text
+  seoTitle       String?
+  seoDescription String?       @db.Text
+  status         ContentStatus @default(DRAFT)
+  publisherId    String?
+  publisher      User?         @relation("PageTranslationPublisher", fields: [publisherId], references: [id], onDelete: SetNull)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([pageId, locale])
+  @@unique([locale, slug])
+  @@index([locale, status, publishedAt])
+}
+
+model Category {
+  id        String         @id @default(cuid())
+  locale    Locale
+  name      String
+  slug      String
+  posts     PostCategory[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([locale, slug])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  locale    Locale
+  name      String
+  slug      String
+  posts     PostTag[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([locale, slug])
+}
+
+model PostCategory {
+  postId     String
+  categoryId String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@index([categoryId])
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+}
+
+model Publication {
+  id              String    @id @default(cuid())
+  postId          String    @unique
+  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  publicationDate DateTime?
+  publisherName   String?
+  externalUrl     String?
+  fileMediaId     String?   @unique
+  fileMedia       Media?    @relation("PublicationFile", fields: [fileMediaId], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Event {
-  id              String             @id @default(cuid())
-  status          ContentStatus      @default(DRAFT)
-  startsAt        DateTime
-  endsAt          DateTime?
-  venue           String?
-  registrationUrl String?
-  translations    EventTranslation[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                   String              @id @default(cuid())
+  startsAt             DateTime
+  endsAt               DateTime?
+  venue                String?
+  registrationUrl      String?
+  registrationOpensAt  DateTime?
+  registrationClosesAt DateTime?
+  capacity             Int?
+  authorId             String
+  author               User                @relation("EventAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  coverMediaId         String?
+  coverMedia           Media?              @relation("EventCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  translations         EventTranslation[]
+  sessions             EventSession[]
+  speakers             EventSpeaker[]
+  registrations        EventRegistration[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([startsAt])
 }
 
 model EventTranslation {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   eventId     String
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   locale      Locale
   title       String
   slug        String
-  description String?
+  description String?       @db.Text
+  status      ContentStatus @default(DRAFT)
+  publisherId String?
+  publisher   User?         @relation("EventTranslationPublisher", fields: [publisherId], references: [id], onDelete: SetNull)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@unique([eventId, locale])
   @@unique([locale, slug])
+  @@index([locale, status, publishedAt])
+}
+
+model EventSession {
+  id          String                @id @default(cuid())
+  eventId     String
+  event       Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title       String
+  description String?               @db.Text
+  startsAt    DateTime
+  endsAt      DateTime?
+  venue       String?
+  sortOrder   Int                   @default(0)
+  speakers    EventSessionSpeaker[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([eventId, startsAt])
+}
+
+model EventSpeaker {
+  id           String                @id @default(cuid())
+  eventId      String
+  event        Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name         String
+  title        String?
+  organization String?
+  bio          String?               @db.Text
+  sortOrder    Int                   @default(0)
+  sessions     EventSessionSpeaker[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([eventId, sortOrder])
+}
+
+model EventSessionSpeaker {
+  sessionId String
+  speakerId String
+  session   EventSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  speaker   EventSpeaker @relation(fields: [speakerId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, speakerId])
+  @@index([speakerId])
+}
+
+model EventRegistration {
+  id           String                  @id @default(cuid())
+  eventId      String
+  event        Event                   @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  memberId     String?
+  member       Member?                 @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  attendeeName String
+  email        String
+  phone        String?
+  status       EventRegistrationStatus @default(REGISTERED)
+  registeredAt DateTime                @default(now())
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@unique([eventId, email])
+  @@index([eventId, status])
+  @@index([memberId])
 }
 
 model ContactMessage {
@@ -236,24 +596,93 @@ model ContactMessage {
   phone        String?
   subject      String?
   category     String        @default("GENERAL")
-  message      String
+  message      String        @db.Text
   status       ContactStatus @default(NEW)
-  internalNote String?
+  internalNote String?       @db.Text
+  assignedToId String?
+  assignedTo   User?         @relation("ContactAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@index([status, createdAt])
+  @@index([assignedToId, status])
 }
 
 model Media {
-  id           String   @id @default(cuid())
-  storageKey   String   @unique
-  originalName String
-  mimeType     String
-  sizeBytes    Int
-  isPublic     Boolean  @default(false)
-  altText      String?
-  createdAt    DateTime @default(now())
+  id              String          @id @default(cuid())
+  storageProvider String          @default("s3-compatible")
+  bucket          String
+  storageKey      String
+  originalName    String
+  mimeType        String
+  sizeBytes       BigInt
+  visibility      MediaVisibility @default(PRIVATE)
+  altText         String?
+  uploadedById    String?
+  uploadedBy      User?           @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  applicationDocument ApplicationDocument?
+  paymentReceipt      MembershipPayment?   @relation("PaymentReceipt")
+  postCovers          Post[]               @relation("PostCover")
+  pageCovers          Page[]               @relation("PageCover")
+  eventCovers         Event[]              @relation("EventCover")
+  publicationFile     Publication?         @relation("PublicationFile")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storageProvider, bucket, storageKey])
+  @@index([visibility, createdAt])
+  @@index([uploadedById])
+}
+
+model Notification {
+  id             String              @id @default(cuid())
+  userId         String?
+  user           User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recipientEmail String
+  channel        NotificationChannel @default(EMAIL)
+  status         NotificationStatus  @default(PENDING)
+  templateKey    String?
+  subject        String
+  body           String              @db.Text
+  metadata       Json?
+  sentAt         DateTime?
+  errorMessage   String?             @db.Text
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([recipientEmail, createdAt])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedById String?
+  updatedBy   User?    @relation("SettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([updatedById])
+}
+
+model ContentRevision {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  locale      Locale
+  version     Int
+  snapshot    Json
+  changedById String
+  changedBy   User     @relation(fields: [changedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  @@unique([entityType, entityId, locale, version])
+  @@index([entityType, entityId, locale, createdAt])
 }
 
 model AuditLog {

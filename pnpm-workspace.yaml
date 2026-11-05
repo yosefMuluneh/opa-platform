@@ -1,1 +1,9 @@
-packages:\n  - 'apps/*'\n  - 'packages/*'\n
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  prisma: true

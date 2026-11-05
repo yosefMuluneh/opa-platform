@@ -1,2 +1,32 @@
 const nav=['About','Membership','News','Events','Publications','Contact'];
-export default function Home(){return <main className="min-h-screen"><header className="border-b bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5"><div><p className="font-bold text-emerald-950">OROMIA PHYSICIANS ASSOCIATION</p><p className="text-xs tracking-widest text-emerald-800">PROFESSIONALISM · SERVICE · ADVOCACY</p></div><nav className="hidden gap-5 text-sm md:flex">{nav.map(x=><a key={x} href="#">{x}</a>)}</nav><a className="rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white" href="#">Become a member</a></div></header><section className="bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 text-white"><div className="mx-auto max-w-7xl px-6 py-28"><p className="text-sm font-semibold uppercase tracking-widest text-teal-200">Oromia Physicians Association</p><h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-tight md:text-6xl">Advancing healthcare through a stronger medical community.</h1><p className="mt-7 max-w-2xl text-lg leading-8 text-emerald-50/80">Connecting physicians, strengthening professional practice, and advocating for better health across Oromia.</p><div className="mt-9 flex gap-3"><a className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-emerald-950" href="#">Explore OPA</a><a className="rounded-full border border-white/30 px-6 py-3 text-sm" href="#">Membership information</a></div></div></section><section className="mx-auto max-w-7xl px-6 py-20"><p className="text-sm font-semibold uppercase tracking-widest text-emerald-800">The association</p><h2 className="mt-3 text-3xl font-semibold">A professional home for physicians serving Oromia.</h2><p className="mt-5 max-w-3xl leading-8 text-slate-600">Initial application shell. Institutional pages, membership, news, events and publications will connect to the OPA API and bilingual CMS in later stages.</p></section><footer className="border-t bg-white px-6 py-8 text-sm text-slate-500">© {new Date().getFullYear()} Oromia Physicians Association</footer></main>}
+export default function Home(){
+    return (<main className="min-h-screen">
+        <header className="border-b bg-white">
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+                <div>
+                    <p className="font-bold text-emerald-950">OROMIA PHYSICIANS ASSOCIATION</p>
+                    <p className="text-xs tracking-widest text-emerald-800">PROFESSIONALISM · SERVICE · ADVOCACY</p>
+                </div>
+                <nav className="hidden gap-5 text-sm md:flex">{nav.map(x=><a key={x} href="#">{x}</a>)}</nav>
+                <a className="rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white" href="#">Become a member</a>
+            </div>
+        </header>
+        <section className="bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 text-white">
+            <div className="mx-auto max-w-7xl px-6 py-28">
+                <p className="text-sm font-semibold uppercase tracking-widest text-teal-200">Oromia Physicians Association</p>
+                <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-tight md:text-6xl">Advancing healthcare through a stronger medical community.</h1>
+                <p className="mt-7 max-w-2xl text-lg leading-8 text-emerald-50/80">Connecting physicians, strengthening professional practice, and advocating for better health across Oromia.</p>
+                <div className="mt-9 flex gap-3">
+                    <a className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-emerald-950" href="#">Explore OPA</a>
+                    <a className="rounded-full border border-white/30 px-6 py-3 text-sm" href="#">Membership information</a>
+                </div>
+            </div>
+        </section>
+        <section className="mx-auto max-w-7xl px-6 py-20">
+            <p className="text-sm font-semibold uppercase tracking-widest text-emerald-800">The association</p>
+            <h2 className="mt-3 text-3xl font-semibold">A professional home for physicians serving Oromia.</h2>
+            <p className="mt-5 max-w-3xl leading-8 text-slate-600">Initial application shell. Institutional pages, membership, news, events and publications will connect to the OPA API and bilingual CMS in later stages.</p>
+        </section>
+        <footer className="border-t bg-white px-6 py-8 text-sm text-slate-500">© {new Date().getFullYear()} Oromia Physicians Association</footer>
+</main>)
+}

@@ -1,1 +1,3 @@
-import { Module } from '@nestjs/common';\n@Module({})\nexport class ContentModule {}\n
+import { Module } from '@nestjs/common';
+@Module({})
+export class ContentModule {}

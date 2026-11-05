@@ -1,1 +1,3 @@
-import { Module } from '@nestjs/common';\n@Module({})\nexport class AuthModule {}\n
+import { Module } from '@nestjs/common';
+@Module({})
+export class AuthModule {}

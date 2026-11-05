@@ -5,7 +5,7 @@ services:
       POSTGRES_DB: opa_dev
       POSTGRES_USER: opa
       POSTGRES_PASSWORD: opa_dev_password
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: ["opa_postgres_data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U opa -d opa_dev"]
