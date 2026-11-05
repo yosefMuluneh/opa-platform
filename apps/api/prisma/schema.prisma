@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_CORRECTION
+  APPROVED
+  DECLINED
+}
+
+enum PaymentStatus {
+  NOT_REQUIRED
+  PENDING
+  RECEIPT_SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContactStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  ARCHIVED
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum Locale {
+  EN
+  OM
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  status       UserStatus  @default(ACTIVE)
+  roles        UserRole[]
+  reviews      ApplicationReview[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  users       UserRole[]
+  createdAt   DateTime   @default(now())
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model MembershipType {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  fee          Decimal? @db.Decimal(12, 2)
+  currency     String   @default("ETB")
+  isActive     Boolean  @default(true)
+  applications MembershipApplication[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MembershipApplication {
+  id               String                 @id @default(cuid())
+  trackingRef      String                 @unique
+  membershipTypeId String
+  membershipType   MembershipType         @relation(fields: [membershipTypeId], references: [id])
+  firstName        String
+  middleName       String?
+  lastName         String
+  email            String
+  phone            String
+  professionalId   String?
+  institution      String?
+  status           ApplicationStatus      @default(SUBMITTED)
+  paymentStatus    PaymentStatus          @default(PENDING)
+  applicantNotes   String?
+  documents        ApplicationDocument[]
+  reviews          ApplicationReview[]
+  payments         MembershipPayment[]
+  member           Member?
+  submittedAt      DateTime               @default(now())
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([status, submittedAt])
+  @@index([email])
+}
+
+model ApplicationDocument {
+  id            String               @id @default(cuid())
+  applicationId String
+  application   MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  documentType  String
+  storageKey    String
+  originalName  String
+  mimeType      String
+  sizeBytes     Int
+  createdAt     DateTime             @default(now())
+
+  @@index([applicationId])
+}
+
+model ApplicationReview {
+  id             String               @id @default(cuid())
+  applicationId  String
+  application    MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId     String
+  reviewer       User                 @relation(fields: [reviewerId], references: [id])
+  action         String
+  previousStatus ApplicationStatus?
+  newStatus      ApplicationStatus?
+  note           String?
+  createdAt      DateTime             @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model MembershipPayment {
+  id               String               @id @default(cuid())
+  applicationId    String
+  application      MembershipApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  amount           Decimal              @db.Decimal(12, 2)
+  currency         String               @default("ETB")
+  status           PaymentStatus        @default(PENDING)
+  receiptKey       String?
+  verifiedById     String?
+  verifiedAt       DateTime?
+  verificationNote String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([applicationId, status])
+}
+
+model Member {
+  id            String               @id @default(cuid())
+  membershipNo  String               @unique
+  applicationId String               @unique
+  application   MembershipApplication @relation(fields: [applicationId], references: [id])
+  isActive      Boolean              @default(true)
+  joinedAt      DateTime             @default(now())
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model Post {
+  id           String             @id @default(cuid())
+  type         String             @default("NEWS")
+  status       ContentStatus      @default(DRAFT)
+  coverMediaId String?
+  translations PostTranslation[]
+  publishedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([type, status, publishedAt])
+}
+
+model PostTranslation {
+  id              String        @id @default(cuid())
+  postId          String
+  post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  locale          Locale
+  title           String
+  slug            String
+  excerpt         String?
+  body            String
+  seoTitle        String?
+  seoDescription  String?
+  status          ContentStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([postId, locale])
+  @@unique([locale, slug])
+}
+
+model Event {
+  id              String             @id @default(cuid())
+  status          ContentStatus      @default(DRAFT)
+  startsAt        DateTime
+  endsAt          DateTime?
+  venue           String?
+  registrationUrl String?
+  translations    EventTranslation[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model EventTranslation {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  locale      Locale
+  title       String
+  slug        String
+  description String?
+
+  @@unique([eventId, locale])
+  @@unique([locale, slug])
+}
+
+model ContactMessage {
+  id           String        @id @default(cuid())
+  name         String
+  email        String
+  phone        String?
+  subject      String?
+  category     String        @default("GENERAL")
+  message      String
+  status       ContactStatus @default(NEW)
+  internalNote String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model Media {
+  id           String   @id @default(cuid())
+  storageKey   String   @unique
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  isPublic     Boolean  @default(false)
+  altText      String?
+  createdAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+}

@@ -1,0 +1,1 @@
+import type { NextConfig } from 'next';\nconst config: NextConfig = { transpilePackages: ['@opa/types'] };\nexport default config;\n

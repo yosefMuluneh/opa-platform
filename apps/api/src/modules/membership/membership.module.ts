@@ -1,0 +1,1 @@
+import { Module } from '@nestjs/common';\n@Module({})\nexport class MembershipModule {}\n
