@@ -255,6 +255,9 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@jest/globals':
+        specifier: 29.7.0
+        version: 29.7.0(supports-color@8.1.1)
       '@nestjs/cli':
         specifier: ^11.0.5
         version: 11.0.24(@types/node@22.20.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.32)(prettier@3.9.10)(uglify-js@3.19.3)
