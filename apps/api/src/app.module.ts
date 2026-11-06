@@ -9,5 +9,5 @@ import { EventsModule } from './modules/events/events.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { MediaModule } from './modules/media/media.module';
 import { AuditModule } from './modules/audit/audit.module';
-@Module({imports:[ConfigModule.forRoot({isGlobal:true, envFilePath:'../../.env'}),PrismaModule,HealthModule,AuthModule,MembershipModule,ContentModule,EventsModule,ContactModule,MediaModule,AuditModule]})
+@Module({imports:[ConfigModule.forRoot({isGlobal:true, envFilePath:'.env'}),PrismaModule,HealthModule,AuthModule,MembershipModule,ContentModule,EventsModule,ContactModule,MediaModule,AuditModule]})
 export class AppModule {}

@@ -1,1 +1,22 @@
-{"extends":"../../tsconfig.base.json","compilerOptions":{"module":"CommonJS","moduleResolution":"Node","declaration":true,"emitDecoratorMetadata":true,"experimentalDecorators":true,"outDir":"./dist","strictPropertyInitialization":false},"include":["src/**/*.ts"]}
+
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "types": ["node"],
+    "declaration": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "outDir": "./dist",
+    "strictPropertyInitialization": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "prisma/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
